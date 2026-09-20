@@ -1,0 +1,27 @@
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic>=2.10.4
+pydantic-settings>=2.7.1
+SQLAlchemy>=2.0.54
+alembic==1.14.0
+asyncpg
+greenlet
+redis==5.2.1
+httpx==0.28.1
+pandas>=2.2.3
+numpy>=1.26
+python-dotenv==1.0.1
+anthropic==0.42.0
+tenacity==9.0.0
+# Only used for the live FYERS WebSocket (app/integrations/fyers/websocket.py),
+# imported lazily so USE_MOCK_FYERS=true dev/test never needs it. Confirmed
+# installable in this project's own Docker image (python:3.12-slim); may fail
+# to build on some host venvs (old exact-pinned aiohttp needs a C compiler) --
+# harmless there since that code path is never imported outside live mode.
+fyers-apiv3==3.1.18
+
+pytest==8.3.4
+pytest-asyncio==0.25.0
+pytest-mock==3.14.0
+respx==0.22.0
+aiosqlite==0.20.0

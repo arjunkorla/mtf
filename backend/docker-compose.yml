@@ -1,0 +1,54 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: mtf
+      POSTGRES_PASSWORD: mtf
+      POSTGRES_DB: mtf
+    ports:
+      - "5432:5432"
+    volumes:
+      - mtf_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mtf"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: .
+    env_file:
+      - .env
+    environment:
+      # Override .env's localhost-based URLs: inside this container
+      # "localhost" is the container itself, not the db/redis services --
+      # reach them by their Compose service name instead.
+      DATABASE_URL: postgresql+asyncpg://mtf:mtf@db:5432/mtf
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - .:/app
+    # Dev-only override: the Dockerfile's own CMD has no --reload (kept
+    # production-clean), but this compose file bind-mounts the source tree
+    # specifically so local edits take effect -- without --reload they'd
+    # silently sit unused until someone thought to restart the container.
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+volumes:
+  mtf_pgdata:
