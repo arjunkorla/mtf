@@ -35,6 +35,12 @@ TTL_FNO_SECONDS = 60
 # live tick (or vice versa) by whichever process last wrote it.
 TTL_LIVE_QUOTE_SECONDS = 15
 TTL_LIVE_DEPTH_SECONDS = 15
+# Global macro context (Phase 11 research layer) changes slowly relative to
+# a 1-4 week MTF setup and comes from a best-effort, unofficial source (see
+# app/integrations/global_macro/yahoo_finance_client.py) -- cached longer
+# than the FYERS live data above specifically so a flaky/blocked upstream
+# doesn't turn into a fetch on every request.
+TTL_GLOBAL_MACRO_SECONDS = 300
 
 
 def quote_key(symbol: str) -> str:
@@ -83,6 +89,10 @@ def options_chain_key(symbol: str) -> str:
 
 def futures_depth_key(symbol: str) -> str:
     return f"mtf:futures_depth:{symbol}"
+
+
+def global_macro_key(ticker: str) -> str:
+    return f"mtf:global_macro:{ticker}"
 
 
 def news_feed_key(feed_url: str) -> str:

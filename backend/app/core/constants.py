@@ -170,6 +170,65 @@ SCORE_WEIGHTS = {
 
 assert sum(SCORE_WEIGHTS.values()) == 100
 
+# --- Research confirmation layer (Phase 5, 2026-09-21) ---
+# EXPERIMENTAL, separate from the production MTF score above. Never
+# imported by scoring_engine.py/scanner_service.py.
+
+
+class ResearchStatus(StrEnum):
+    HIGH_CONFIRMATION = "HIGH_CONFIRMATION"
+    SUPPORTIVE = "SUPPORTIVE"
+    NEUTRAL = "NEUTRAL"
+    CONFLICTING = "CONFLICTING"
+    WEAK = "WEAK"
+    INSUFFICIENT_DATA = "INSUFFICIENT_DATA"
+
+
+class VixRegime(StrEnum):
+    LOW_VOLATILITY = "LOW_VOLATILITY"
+    NORMAL = "NORMAL"
+    ELEVATED = "ELEVATED"
+    HIGH = "HIGH"
+    INSUFFICIENT_DATA = "INSUFFICIENT_DATA"
+    # RISING/FALLING deliberately not modeled: this system has no persisted
+    # VIX history, so a trend call from a single live snapshot would be a
+    # fabricated trend, not measured evidence -- see india_vix_engine.py.
+
+
+class MacroSessionState(StrEnum):
+    LIVE_SESSION = "LIVE_SESSION"
+    LAST_AVAILABLE_SNAPSHOT = "LAST_AVAILABLE_SNAPSHOT"
+    UNAVAILABLE = "UNAVAILABLE"
+
+
+class GlobalRiskSentiment(StrEnum):
+    RISK_ON = "RISK_ON"
+    RISK_OFF = "RISK_OFF"
+    MIXED = "MIXED"
+    INSUFFICIENT_DATA = "INSUFFICIENT_DATA"
+
+
+# Research-layer component weights (must sum to 100). EXPERIMENTAL --
+# unlike SCORE_WEIGHTS above, these are not production-approved and have
+# not been backtested; see research_confirmation_engine.py's module
+# docstring for the double-counting analysis behind each weight, especially
+# why institutional_footprint (15, not ~25+) and live_confirmation (10, not
+# ~20+) are deliberately smaller than a "naive equal split" would give them.
+RESEARCH_WEIGHTS = {
+    "technical_and_relative_strength": 20,
+    "institutional_footprint": 15,
+    "futures_options_positioning": 12,
+    "live_confirmation": 10,
+    "market_regime_and_global_sentiment": 12,
+    "sector_context": 10,
+    "catalyst_news": 8,
+    "corporate_events": 8,  # always unavailable today -- see CorporateEventContext
+    "data_quality": 5,
+}
+
+assert sum(RESEARCH_WEIGHTS.values()) == 100
+
+
 # Candidate filtering defaults (overridable via /api/settings)
 DEFAULT_MIN_PRICE = 20.0
 DEFAULT_MIN_AVG_DAILY_TURNOVER = 5_00_00_000  # INR 5 crore

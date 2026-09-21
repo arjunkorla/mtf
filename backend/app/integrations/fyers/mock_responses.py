@@ -129,7 +129,16 @@ def mock_options_chain_response(symbol: str = MOCK_SYMBOL) -> dict:
     live 2026-09-20): the underlying's own row (option_type=="", strike=-1)
     carries futures price fields (fp/fpch/fpchp), never a FUT-symbol row --
     see fno.py's module docstring. Top-level callOi/putOi are real aggregate
-    options Open Interest, independent of the per-strike rows."""
+    options Open Interest, independent of the per-strike rows.
+
+    `indiavixData` (confirmed live 2026-09-21) is a real, market-wide
+    India VIX quote riding along on every options-chain response regardless
+    of the underlying -- not specific to this symbol. CE/PE rows carry no
+    IV or Greeks fields (also confirmed live 2026-09-21: a real row has only
+    ask/bid/fyToken/ltp/ltpch/ltpchp/oi/oich/oichp/option_type/prev_oi/
+    strike_price/symbol/volume), so this mock deliberately omits them too --
+    see normalize_india_vix() in normalization.py.
+    """
     return {
         "s": "ok",
         "code": 200,
@@ -137,6 +146,11 @@ def mock_options_chain_response(symbol: str = MOCK_SYMBOL) -> dict:
         "data": {
             "callOi": 4_500_000,
             "putOi": 5_100_000,
+            "indiavixData": {
+                "ask": 0, "bid": 0, "description": "INDIAVIX-INDEX", "ex_symbol": "INDIAVIX",
+                "exchange": "NSE", "fyToken": "101000000026017", "ltp": 11.47, "ltpch": 0.08,
+                "ltpchp": 0.7, "option_type": "", "strike_price": -1, "symbol": "NSE:INDIAVIX-INDEX",
+            },
             "optionsChain": [
                 {
                     "symbol": symbol, "ex_symbol": symbol.split(":")[-1].split("-")[0],

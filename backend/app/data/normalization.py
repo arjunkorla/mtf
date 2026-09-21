@@ -112,6 +112,22 @@ def normalize_options_oi(raw: dict) -> tuple[float | None, float | None]:
     )
 
 
+def normalize_india_vix(raw: dict) -> float | None:
+    """Extracts the India VIX level from a FYERS options-chain response
+    (confirmed live 2026-09-21): `data.indiavixData.ltp` is a real,
+    market-wide quote that rides along on every options-chain call
+    regardless of the underlying requested -- not specific to one stock.
+    Zero extra API cost since options-chain is already fetched per F&O
+    candidate; this is a pure additive extraction, not a new data source.
+
+    Research-layer evidence only (section: institutional footprint proxy
+    v2 / market regime) -- not wired into fno_engine.py, FnoData, or
+    scoring_engine.py, which never reference this function.
+    """
+    vix = raw.get("data", {}).get("indiavixData", {}).get("ltp")
+    return float(vix) if vix is not None else None
+
+
 def normalize_futures_depth(raw: dict, symbol: str) -> FuturesContract | None:
     """Normalizes a FYERS market-depth response for an actual futures
     contract symbol (Phase 1 F&O investigation). Confirmed live 2026-09-20

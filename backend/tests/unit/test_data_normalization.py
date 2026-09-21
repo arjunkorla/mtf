@@ -3,6 +3,7 @@ from app.data.normalization import (
     normalize_futures_chain,
     normalize_futures_depth,
     normalize_history,
+    normalize_india_vix,
     normalize_options_oi,
     normalize_quote,
 )
@@ -93,6 +94,21 @@ def test_normalize_options_oi_extracts_call_put_aggregate():
     call_oi, put_oi = normalize_options_oi(mock_options_chain_response())
     assert call_oi == 4_500_000
     assert put_oi == 5_100_000
+
+
+def test_normalize_india_vix_extracts_ltp_from_options_chain_response():
+    assert normalize_india_vix(mock_options_chain_response()) == 11.47
+
+
+def test_normalize_india_vix_returns_none_when_field_missing():
+    """No fabricated value when FYERS doesn't include indiavixData at all
+    (e.g. an older cached payload or a symbol type that never carries it)."""
+    raw = {"s": "ok", "data": {"callOi": 1, "putOi": 1, "optionsChain": []}}
+    assert normalize_india_vix(raw) is None
+
+
+def test_normalize_india_vix_handles_empty_payload():
+    assert normalize_india_vix({}) is None
 
 
 def test_normalize_futures_depth_extracts_oi_and_price_change():
