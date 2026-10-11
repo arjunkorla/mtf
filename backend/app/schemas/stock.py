@@ -19,6 +19,10 @@ class MarketData(BaseModel):
     week_52_high: float | None = None
     week_52_low: float | None = None
     as_of: dt.datetime
+    # Phase D (additive): what `as_of` actually means, and the FYERS quote's
+    # session-date stamp (its `tt` field) -- never an exchange trade time.
+    as_of_basis: str | None = None
+    quote_session_date: dt.date | None = None
 
 
 class TechnicalData(BaseModel):

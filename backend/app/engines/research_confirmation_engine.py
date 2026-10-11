@@ -59,6 +59,7 @@ import datetime as dt
 
 from app.core.constants import GlobalRiskSentiment, RESEARCH_WEIGHTS, ResearchStatus
 from app.engines.india_vix_engine import classify_vix_regime
+from app.engines.sector_participation_engine import classify_sector_participation_from_deltas
 from app.schemas.confirmation import RealtimeConfirmationResponse
 from app.schemas.research import (
     CorporateEventContext,
@@ -345,6 +346,10 @@ def build_research_confirmation(
     supporting = _detect_supporting_signals(candidate, realtime)
     status = _derive_research_status(research_score, conflicts)
 
+    sector_participation, sector_participation_evidence = classify_sector_participation_from_deltas(
+        candidate.relative_strength.vs_sector_pct_20d, candidate.technical.trend_structure,
+    )
+
     risk_signals: list[str] = []
     if vix_context.regime in ("ELEVATED", "HIGH"):
         risk_signals.append(f"INDIA_VIX_{vix_context.regime}")
@@ -386,6 +391,8 @@ def build_research_confirmation(
         technical_context=candidate.technical,
         relative_strength=candidate.relative_strength,
         sector_context=candidate.sector_context,
+        sector_participation=sector_participation,
+        sector_participation_evidence=sector_participation_evidence,
         volume_accumulation=candidate.volume,
         institutional_proxy_context=candidate.institutional_footprint.model_dump(mode="json"),
         futures_context=candidate.fno,

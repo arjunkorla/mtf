@@ -15,12 +15,16 @@ export class ApiError extends Error {
    * instead of a generic error.
    */
   isNetworkError: boolean;
+  /** Machine-readable error code from the backend body, e.g.
+   * "FYERS_AUTH_REQUIRED" when the FYERS session must be reconnected. */
+  code?: string;
 
-  constructor(message: string, opts: { status?: number; isNetworkError?: boolean } = {}) {
+  constructor(message: string, opts: { status?: number; isNetworkError?: boolean; code?: string } = {}) {
     super(message);
     this.name = "ApiError";
     this.status = opts.status;
     this.isNetworkError = opts.isNetworkError ?? false;
+    this.code = opts.code;
   }
 }
 

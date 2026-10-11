@@ -13,7 +13,14 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.constants import DEFAULT_MAX_CANDIDATES, DEFAULT_MIN_CANDIDATES
-from app.core.exceptions import FyersApiError, FyersAuthError, FyersRateLimitError, InsufficientDataError, MtfError
+from app.core.exceptions import (
+    FyersApiError,
+    FyersAuthError,
+    FyersAuthRequiredError,
+    FyersRateLimitError,
+    InsufficientDataError,
+    MtfError,
+)
 from app.data.universe import UniverseEntry, get_seed_universe
 from app.integrations.fyers.fyers_client import FyersClient
 from app.logging_config import get_logger
@@ -122,6 +129,12 @@ async def run_scanner(
                     risk_percent=request.risk_percent,
                 )
                 candidates.append(candidate)
+            except FyersAuthRequiredError:
+                # A dead session fails every remaining symbol the same way --
+                # abort the run (-> 401 FYERS_AUTH_REQUIRED) instead of
+                # returning a partial scan built from whichever symbols
+                # happened to finish before the token expired.
+                raise
             except CandidateRejected as exc:
                 rejection_summary[exc.reason] = rejection_summary.get(exc.reason, 0) + 1
             except MtfError as exc:

@@ -12,7 +12,6 @@ from pydantic import BaseModel, Field
 
 from app.schemas.common import DataQuality, EvidenceItem
 from app.schemas.confirmation import RealtimeConfirmationResponse
-from app.schemas.scanner import CandidateResponse
 from app.schemas.stock import FnoData, NewsData, RelativeStrengthData, SectorData, TechnicalData, VolumeData
 
 RESEARCH_LABEL = "EXPERIMENTAL -- NOT PRODUCTION VALIDATED"
@@ -89,6 +88,8 @@ class ResearchConfirmation(BaseModel):
     technical_context: TechnicalData
     relative_strength: RelativeStrengthData
     sector_context: SectorData
+    sector_participation: str = "INSUFFICIENT_DATA"  # Phase 6 Objective 4 -- analytical only, never scored
+    sector_participation_evidence: list[EvidenceItem] = Field(default_factory=list)
     volume_accumulation: VolumeData
     institutional_proxy_context: dict  # InstitutionalFootprint.model_dump() pass-through
     futures_context: FnoData
@@ -106,6 +107,54 @@ class ResearchConfirmation(BaseModel):
     core_data_quality: DataQuality  # pass-through from CandidateResponse.data_quality
     research_data_coverage: dict[str, bool]  # which OPTIONAL research sources were available this run
     source_provenance: dict[str, str]
+
+
+class ResearchObservationSummary(BaseModel):
+    """One persisted row's summary (Phase 6) -- research-only, never a
+    production ranking output."""
+
+    id: int
+    session_date: dt.date
+    timestamp_utc: dt.datetime
+    symbol: str
+    mtf_score: float
+    mtf_rank: int | None
+    research_confirmation_score: float | None
+    research_rank: int | None
+    research_status: str
+    sector_participation: str
+    divergence_classification: str
+    outcome_status: str
+
+
+class ResearchMarketSnapshotSummary(BaseModel):
+    id: int
+    session_date: dt.date
+    timestamp_utc: dt.datetime
+    slot_label: str
+    nifty_regime: str
+    india_vix: float | None
+    vix_regime: str
+    global_risk_sentiment: str
+
+
+class DivergenceSummaryRow(BaseModel):
+    classification: str
+    count: int
+    symbols: list[str]
+
+
+class CollectionResult(BaseModel):
+    """Result of one collect-snapshot attempt -- explicit about WHY nothing
+    was collected (Phase 6: never fabricate a missing observation)."""
+
+    status: str  # COLLECTED | SKIPPED_NOT_MARKET_HOURS | SKIPPED_NOT_A_COLLECTION_WINDOW | SKIPPED_ALREADY_COLLECTED | SKIPPED_NO_CANDIDATES
+    slot: str | None = None
+    session_date: str | None = None
+    snapshot_id: int | None = None
+    observation_count: int | None = None
+    symbols: list[str] | None = None
+    timestamp_ist: str | None = None
 
 
 class ResearchComparisonRow(BaseModel):

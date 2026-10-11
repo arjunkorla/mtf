@@ -197,5 +197,23 @@ def mock_futures_depth_response(symbol: str = "NSE:RELIANCE26SEPFUT") -> dict:
     }
 
 
+def mock_margin_response(symbol: str = MOCK_SYMBOL, required_margin_pct: float = 25.0, ltp: float = 2951.2) -> dict:
+    """Best-effort shape for the order-margin calculator response with a
+    single MTF-productType order -- NOT confirmed live (see margin.py's
+    module docstring). `required_margin_pct` is expressed back as a margin
+    amount for 1 share at `ltp` so margin.extract_required_margin_pct()'s
+    real parsing path is exercised end-to-end by tests, not bypassed."""
+    margin_total = round(ltp * required_margin_pct / 100, 2)
+    return {
+        "s": "ok",
+        "code": 200,
+        "message": "",
+        "data": {
+            "margin_total": margin_total,
+            "margin_avail": 100_000.0,
+        },
+    }
+
+
 def mock_token_response() -> dict:
     return {"s": "ok", "code": 200, "message": "", "access_token": "mock-access-token"}

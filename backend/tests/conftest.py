@@ -17,6 +17,12 @@ os.environ["USE_MOCK_FYERS"] = "true"
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 os.environ["AI_PROVIDER"] = "none"
 os.environ["APP_ENV"] = "test"
+# Phase B/C feature flags: tests must see the safe defaults even when the
+# container running them was started with the tracker/adapter enabled
+# (observed 2026-09-29 during the controlled live validation).
+os.environ["ENABLE_SUGGESTION_TRACKER"] = "false"
+os.environ["ENABLE_MTF_SUGGESTION_ADAPTER"] = "false"
+os.environ["MTF_SUGGESTION_DRY_RUN"] = "true"
 
 # Redis isolation (Phase 5 test-isolation fix, 2026-09-21): service-level unit
 # tests that call get_redis() directly (not via the app_client fixture's
@@ -35,6 +41,19 @@ os.environ["APP_ENV"] = "test"
 TEST_REDIS_DB = 15
 _prod_redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 os.environ["REDIS_URL"] = f"{_prod_redis_url.rsplit('/', 1)[0]}/{TEST_REDIS_DB}"
+
+# FYERS session isolation: the runtime token store (backend/.runtime/
+# fyers_session.json) holds the developer's REAL FYERS session. Tests get
+# their own throwaway file and a blank legacy token, so nothing here can read,
+# overwrite, or delete real credentials.
+import tempfile
+from pathlib import Path
+
+TEST_FYERS_SESSION_FILE = Path(tempfile.mkdtemp(prefix="mtf-test-fyers-")) / "fyers_session.json"
+os.environ["FYERS_SESSION_FILE"] = str(TEST_FYERS_SESSION_FILE)
+os.environ["FYERS_ACCESS_TOKEN"] = ""
+
+import pytest
 
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
@@ -59,6 +78,19 @@ class _FakeRedis:
 
     async def ping(self):
         return True
+
+
+@pytest.fixture(autouse=True)
+def _isolated_fyers_session():
+    """Fresh, empty test session file and fresh session managers per test."""
+    from app.integrations.fyers import session as fyers_session
+    from app.integrations.fyers import token_store
+
+    TEST_FYERS_SESSION_FILE.unlink(missing_ok=True)
+    token_store._stores.clear()
+    fyers_session.reset_session_managers()
+    yield
+    TEST_FYERS_SESSION_FILE.unlink(missing_ok=True)
 
 
 @pytest_asyncio.fixture(autouse=True)

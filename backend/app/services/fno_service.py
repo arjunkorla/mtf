@@ -27,6 +27,7 @@ from app.db.redis_client import get_redis
 from app.integrations.fyers.fno import get_futures_depth, get_options_chain
 from app.integrations.fyers.fo_symbol_master import fetch_fo_symbol_master_csv
 from app.integrations.fyers.fyers_client import FyersClient
+from app.integrations.fyers.request_control import record_cache_hit
 from app.logging_config import get_logger
 from app.services.cache_service import TTL_FNO_SECONDS, futures_depth_key, get_json, options_chain_key, set_json
 
@@ -53,6 +54,7 @@ async def _get_cached_options_chain(client: FyersClient, symbol: str) -> dict:
     cache_key = options_chain_key(symbol)
     cached = await get_json(redis, cache_key)
     if cached is not None:
+        await record_cache_hit("options_chain")
         return cached
 
     raw = await get_options_chain(client, symbol)
@@ -68,6 +70,7 @@ async def _get_cached_futures_depth(client: FyersClient, futures_symbol: str) ->
     cache_key = futures_depth_key(futures_symbol)
     cached = await get_json(redis, cache_key)
     if cached is not None:
+        await record_cache_hit("depth")
         return cached
 
     raw = await get_futures_depth(client, futures_symbol)

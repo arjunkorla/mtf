@@ -64,7 +64,27 @@ async def scanner_run(
     redis: Redis = Depends(get_redis_dep),
 ) -> ScannerRunResponse:
     settings = await get_scanner_settings(redis)
-    return await run_scanner(request, db, settings)
+    result = await run_scanner(request, db, settings)
+    await _run_suggestion_adapter(db, result)
+    return result
+
+
+async def _run_suggestion_adapter(db: AsyncSession, result: ScannerRunResponse) -> None:
+    """Phase C hook, OFF unless ENABLE_MTF_SUGGESTION_ADAPTER=true (and
+    dry-run unless MTF_SUGGESTION_DRY_RUN=false). Runs AFTER the scan is
+    complete and persisted; it only reads the selected candidates and never
+    changes the scanner response, score or ranking. A failure here is
+    logged, never surfaced as a scanner failure."""
+    from app.config import get_settings
+    from app.logging_config import get_logger
+    from app.services.mtf_suggestion_adapter import run_mtf_adapter
+
+    if not get_settings().enable_mtf_suggestion_adapter:
+        return
+    try:
+        await run_mtf_adapter(db, list(enumerate(result.candidates, start=1)), result.run_id)
+    except Exception as exc:  # noqa: BLE001
+        get_logger(__name__).error("MTF suggestion adapter failed for scanner run %s: %s", result.run_id, exc)
 
 
 @router.get("/scanner/results", response_model=ScannerResultsResponse)

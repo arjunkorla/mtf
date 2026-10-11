@@ -210,11 +210,16 @@ class FyersMarketDataSocket:
     def _run_live(self) -> None:
         from fyers_apiv3.FyersWebsocket import data_ws  # lazy: see module docstring
 
-        if not self.settings.fyers_client_id or not self.settings.fyers_access_token:
-            logger.error("[ERROR] Cannot start live FYERS WebSocket: FYERS_CLIENT_ID/FYERS_ACCESS_TOKEN not set")
+        from app.integrations.fyers.token_store import get_token_store
+
+        # Read the CURRENT runtime session token (not a startup snapshot), so
+        # a socket started after a fresh FYERS login uses the new token.
+        session_token = get_token_store(self.settings).get_access_token()
+        if not self.settings.fyers_client_id or not session_token:
+            logger.error("[ERROR] Cannot start live FYERS WebSocket: FYERS_CLIENT_ID or a valid FYERS session is missing")
             return
 
-        access_token = f"{self.settings.fyers_client_id}:{self.settings.fyers_access_token}"
+        access_token = f"{self.settings.fyers_client_id}:{session_token}"
         first_tick_seen = False
 
         def _on_message(message: dict) -> None:

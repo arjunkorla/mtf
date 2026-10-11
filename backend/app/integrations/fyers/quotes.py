@@ -3,6 +3,7 @@
 from app.db.redis_client import get_redis
 from app.integrations.fyers.fyers_client import FyersClient
 from app.integrations.fyers.mock_responses import mock_quotes_response
+from app.integrations.fyers.request_control import record_cache_hit
 from app.logging_config import get_logger
 from app.services.cache_service import TTL_QUOTE_SECONDS, get_json, quote_key, set_json
 
@@ -26,6 +27,7 @@ async def get_quotes(client: FyersClient, symbols: list[str]) -> dict:
         key = quote_key(symbols[0])
         cached = await get_json(redis, key)
         if cached is not None:
+            await record_cache_hit("quotes")
             return cached
 
         data = await client.get_data("/quotes", params={"symbols": symbols[0]})

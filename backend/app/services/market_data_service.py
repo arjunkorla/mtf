@@ -18,6 +18,7 @@ from app.data.normalization import normalize_depth
 from app.db.redis_client import get_redis
 from app.integrations.fyers.fyers_client import FyersClient
 from app.integrations.fyers.market_data import get_market_depth
+from app.integrations.fyers.request_control import record_cache_hit
 from app.services.cache_service import TTL_LIVE_DEPTH_SECONDS, get_json, live_depth_key, live_quote_key, set_json
 
 FRESHNESS_LIVE = "LIVE"
@@ -158,6 +159,7 @@ async def get_live_depth(client: FyersClient, symbol: str) -> MarketDepth | None
 
     cached = await get_json(redis, cache_key)
     if cached is not None:
+        await record_cache_hit("depth")
         return _depth_from_cached_dict(cached)
 
     raw = await get_market_depth(client, symbol)

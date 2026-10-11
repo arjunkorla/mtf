@@ -23,9 +23,27 @@ class FyersAuthError(FyersApiError):
     """Raised when FYERS authentication/token refresh fails."""
 
 
+class FyersAuthRequiredError(FyersAuthError):
+    """Raised when FYERS rejected the session (HTTP 401) and it could not be
+    recovered automatically -- the user must reconnect (PIN refresh or full
+    login). Surfaced to the frontend as HTTP 401 with code FYERS_AUTH_REQUIRED
+    rather than a generic 502, and never swallowed into a partial scan."""
+
+    code = "FYERS_AUTH_REQUIRED"
+
+
 class FyersRateLimitError(FyersApiError):
     """Raised on a 429 from FYERS -- distinct from other 4xx/5xx so it can be
     retried with backoff instead of failing the candidate immediately."""
+
+
+class FyersLocalCapacityExceeded(FyersRateLimitError):
+    """Raised by our OWN process-wide limiter (request_control.py) when a
+    request could not be admitted within its priority tier's max wait, or
+    the daily safety ceiling is reached. The request was never sent to
+    FYERS. Subclasses FyersRateLimitError so existing callers classify it as
+    rate-limited, but FyersClient never retries it (retrying would only
+    queue behind the same exhausted budget)."""
 
 
 class InsufficientDataError(MtfError):

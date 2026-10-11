@@ -42,6 +42,7 @@ from app.engines import (
 from app.engines.data_quality_engine import compute_data_quality
 from app.integrations.fyers.fyers_client import FyersClient
 from app.integrations.fyers.historical_data import get_daily_history
+from app.integrations.fyers.request_control import record_cache_hit
 from app.models.fundamentals import Fundamentals
 from app.models.news import NewsItem
 from app.models.stock import Stock
@@ -104,6 +105,7 @@ async def _fetch_history(client: FyersClient, symbol: str, days: int = 320) -> l
     cache_key = stock_history_key(symbol)
     cached = await get_json(redis, cache_key)
     if cached is not None:
+        await record_cache_hit("history")
         return _deserialize_candles(cached)
 
     raw = await get_daily_history(client, symbol, range_from, range_to)
@@ -150,6 +152,7 @@ async def get_sector_candles(client: FyersClient, sector_name: str | None) -> li
     cache_key = sector_history_key(sector_name)
     cached = await get_json(redis, cache_key)
     if cached is not None:
+        await record_cache_hit("history")
         return _deserialize_candles(cached)
 
     candles = await _fetch_history(client, index_symbol)

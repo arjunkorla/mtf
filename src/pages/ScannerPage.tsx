@@ -16,6 +16,10 @@ import { runScan } from "../api/scannerApi";
 import { loadScanRunParams, saveScanRunParams, getScannerSettings, updateScannerSettings } from "../api/settingsApi";
 import { checkHealth, BACKEND_UNAVAILABLE_MESSAGE } from "../api/client";
 import StockCard from "../components/scanner/StockCard";
+import FyersStatusBadge from "../components/fyers/FyersStatusBadge";
+import FyersAuthPrompt from "../components/fyers/FyersAuthPrompt";
+import { useFyersStatus } from "../hooks/useFyersStatus";
+import { isFyersAuthRequired } from "../api/fyersAuthState";
 
 const USE_MOCK = import.meta.env.VITE_USE_MOCK_DATA === "true";
 
@@ -56,6 +60,9 @@ export default function ScannerPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [backendStatus, setBackendStatus] = useState<BackendStatus>("checking");
+  const fyers = useFyersStatus(!USE_MOCK);
+  const recheckFyers = fyers.recheck;
+  const [fyersAuthError, setFyersAuthError] = useState(false);
 
   const [settings, setSettings] = useState<ScannerSettings | null>(null);
   const [settingsLoading, setSettingsLoading] = useState(false);
@@ -85,13 +92,18 @@ export default function ScannerPage() {
     inFlight.current = true;
     setLoading(true);
     setError(null);
+    setFyersAuthError(false);
     try {
       saveScanRunParams(runParams);
       const result = await runScan(runParams);
       setScanResult(result);
       setBackendStatus("ok");
     } catch (e) {
-      if (e instanceof ApiError && e.isNetworkError) {
+      if (isFyersAuthRequired(e)) {
+        setFyersAuthError(true);
+        setError(e instanceof Error ? e.message : "FYERS session expired.");
+        recheckFyers(false);
+      } else if (e instanceof ApiError && e.isNetworkError) {
         setBackendStatus("down");
         setError(e.message);
       } else {
@@ -101,7 +113,7 @@ export default function ScannerPage() {
       setLoading(false);
       inFlight.current = false;
     }
-  }, [runParams]);
+  }, [runParams, recheckFyers]);
 
   const updateParam = <K extends keyof ScannerRunRequest>(key: K, val: ScannerRunRequest[K]) => {
     setRunParams((prev) => ({ ...prev, [key]: val }));
@@ -143,8 +155,13 @@ export default function ScannerPage() {
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <ConnectionIndicator status={backendStatus} />
+          <div className="flex items-center gap-4">
+            {!USE_MOCK && backendStatus !== "down" && (
+              <FyersStatusBadge status={fyers.status} unreachable={fyers.unreachable} />
+            )}
+            <div className="flex items-center gap-2">
+              <ConnectionIndicator status={backendStatus} />
+            </div>
           </div>
         </div>
       </header>
@@ -364,8 +381,25 @@ export default function ScannerPage() {
           </div>
         )}
 
+        {/* FYERS session expired -- shown instead of a raw HTTP 401, or up
+            front when the backend already knows the session is gone */}
+        {!USE_MOCK && !loading && (fyersAuthError || fyers.status?.status === "REFRESH_REQUIRED" || fyers.status?.status === "LOGIN_REQUIRED") && (
+          <div className="mb-6">
+            <FyersAuthPrompt
+              status={fyers.status}
+              onReconnected={(s) => {
+                fyers.setStatus(s);
+                if (s.status === "CONNECTED") {
+                  setFyersAuthError(false);
+                  setError(null);
+                }
+              }}
+            />
+          </div>
+        )}
+
         {/* Error state */}
-        {error && !loading && (
+        {error && !loading && !fyersAuthError && (
           <div className="border border-[#4E1B1B] bg-[#2E1212] rounded-lg p-5 flex items-start gap-3 mb-6">
             <AlertCircle size={16} className="text-[#F05252] mt-0.5 shrink-0" />
             <div>

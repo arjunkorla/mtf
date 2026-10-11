@@ -20,6 +20,9 @@ from app.services.stock_service import CandidateRejected, build_candidate, get_n
 
 router = APIRouter()
 
+IST = dt.timezone(dt.timedelta(hours=5, minutes=30))
+QUOTE_AS_OF_BASIS = "QUOTE_SNAPSHOT_RETRIEVAL_TIME"  # not an exchange trade time; REST quotes may come from a <=15s cache
+
 
 def _find_universe_entry(symbol: str):
     normalized = symbol.upper()
@@ -69,7 +72,13 @@ async def get_stock_analysis(
             raise HTTPException(status_code=422, detail=f"{entry.symbol} failed candidate filters: {exc.reason}")
 
         quotes_raw = await get_quotes(client, [entry.symbol])
+        retrieved_at = dt.datetime.now(dt.UTC)
         quote = normalize_quote(quotes_raw)
+        # Phase D: FYERS /quotes carries no last-trade time -- its `tt` is a
+        # session-date stamp (verified live 2026-09-29: 00:00 UTC, identical
+        # for every symbol), which normalize_quote exposes as Quote.as_of. It
+        # is therefore reported as the session date, and as_of is the snapshot
+        # RETRIEVAL time, explicitly labelled -- never presented as a trade time.
         market_data = MarketData(
             price=quote.ltp if quote else candidate.price,
             change_pct=quote.change_pct if quote else None,
@@ -77,7 +86,9 @@ async def get_stock_analysis(
             avg_volume_20d=None,
             day_high=quote.high if quote else None,
             day_low=quote.low if quote else None,
-            as_of=quote.as_of if quote else dt.datetime.now(dt.UTC),
+            as_of=retrieved_at,
+            as_of_basis=QUOTE_AS_OF_BASIS if quote else "SCAN_CLOSE_FALLBACK_NO_QUOTE",
+            quote_session_date=quote.as_of.astimezone(IST).date() if quote else None,
         )
 
         ai_research = await generate_research_note(candidate)

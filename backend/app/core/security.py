@@ -11,6 +11,9 @@ from fastapi import Request
 SENSITIVE_KEYS = {
     "fyers_secret_key",
     "fyers_access_token",
+    "access_token",
+    "refresh_token",
+    "pin",
     "database_url",
     "ai_api_key",
     "redis_url",

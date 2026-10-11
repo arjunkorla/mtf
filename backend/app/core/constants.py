@@ -229,6 +229,45 @@ RESEARCH_WEIGHTS = {
 assert sum(RESEARCH_WEIGHTS.values()) == 100
 
 
+# --- MTF leverage verification (Momentum Scanner automation) ---
+# Never assume leverage: UNVERIFIED is the default whenever FYERS margin
+# data cannot be confirmed for a symbol, not a fallback path that gets
+# skipped in the happy case. See mtf_leverage_engine.py.
+
+
+class MtfLeverageStatus(StrEnum):
+    VERIFIED = "VERIFIED"
+    UNVERIFIED = "UNVERIFIED"
+    NOT_MTF_ELIGIBLE = "NOT_MTF_ELIGIBLE"
+
+
+MIN_VERIFIED_LEVERAGE = 3.0
+
+
+# --- Momentum Scanner automation ranking layer ---
+# EXPERIMENTAL, separate from the production MTF score (SCORE_WEIGHTS above)
+# and from the Research Confirmation layer (RESEARCH_WEIGHTS above). Never
+# imported by scoring_engine.py/scanner_service.py. See
+# momentum_ranking_engine.py. bulk_block_deal_evidence's 15% is always
+# unavailable today (no bulk/block-deal data source exists) and is excluded
+# from every candidate's re-normalization denominator -- it never silently
+# becomes a zero and is never awarded points either.
+MOMENTUM_SCAN_WEIGHTS = {
+    "institutional_footprint": 25,
+    "bulk_block_deal_evidence": 15,
+    "volume_and_delivery": 20,
+    "technical_momentum": 15,
+    "breakout_structure": 10,
+    "relative_strength": 5,
+    "liquidity": 5,
+    "mtf_characteristics": 5,
+}
+
+assert sum(MOMENTUM_SCAN_WEIGHTS.values()) == 100
+
+MOMENTUM_LABEL = "EXPERIMENTAL -- separate from the production MTF score, not backtested"
+
+
 # Candidate filtering defaults (overridable via /api/settings)
 DEFAULT_MIN_PRICE = 20.0
 DEFAULT_MIN_AVG_DAILY_TURNOVER = 5_00_00_000  # INR 5 crore

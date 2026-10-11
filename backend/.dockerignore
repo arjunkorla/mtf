@@ -1,0 +1,5 @@
+﻿# Runtime FYERS session tokens must never be baked into an image
+.runtime/
+.venv/
+.pytest_cache/
+__pycache__/

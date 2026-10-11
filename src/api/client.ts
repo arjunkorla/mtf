@@ -8,18 +8,22 @@ const DEFAULT_TIMEOUT_MS = 20000;
  * response, which means the backend IS running. */
 const BACKEND_UNAVAILABLE_MESSAGE = "Backend unavailable. Start the FastAPI server and try again.";
 
-async function parseErrorDetail(res: Response): Promise<string> {
+async function parseErrorDetail(res: Response): Promise<{ detail: string; code?: string }> {
   try {
     const body = await res.json();
-    if (typeof body?.detail === "string") return body.detail;
+    const code = typeof body?.code === "string" ? body.code : undefined;
+    if (typeof body?.detail === "string") return { detail: body.detail, code };
     if (Array.isArray(body?.detail)) {
       // FastAPI/Pydantic validation errors: [{loc, msg, type}, ...]
-      return body.detail.map((d: { msg?: string }) => d.msg).filter(Boolean).join("; ") || `Request failed (${res.status})`;
+      return {
+        detail: body.detail.map((d: { msg?: string }) => d.msg).filter(Boolean).join("; ") || `Request failed (${res.status})`,
+        code,
+      };
     }
   } catch {
     /* response wasn't JSON */
   }
-  return `Request failed (${res.status})`;
+  return { detail: `Request failed (${res.status})` };
 }
 
 async function request<T>(path: string, options?: RequestInit, timeoutMs = DEFAULT_TIMEOUT_MS): Promise<T> {
@@ -45,8 +49,8 @@ async function request<T>(path: string, options?: RequestInit, timeoutMs = DEFAU
   }
 
   if (!res.ok) {
-    const detail = await parseErrorDetail(res);
-    throw new ApiError(detail, { status: res.status });
+    const { detail, code } = await parseErrorDetail(res);
+    throw new ApiError(detail, { status: res.status, code });
   }
 
   if (res.status === 204) return undefined as T;
@@ -65,4 +69,4 @@ export function checkHealth(): Promise<HealthResponse> {
   return client.get<HealthResponse>("/health");
 }
 
-export { BACKEND_UNAVAILABLE_MESSAGE };
+export { BACKEND_UNAVAILABLE_MESSAGE, BASE_URL };

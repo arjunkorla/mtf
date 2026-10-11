@@ -30,3 +30,30 @@ async def get_daily_history(
         "cont_flag": "1",
     }
     return await client.get_data("/history", params=params)
+
+
+async def get_intraday_history(
+    client: FyersClient,
+    symbol: str,
+    resolution: str,
+    range_from: dt.date,
+    range_to: dt.date,
+) -> dict:
+    """Raw FYERS intraday candles ({"s": "ok", "candles": [[ts, o, h, l, c, v], ...]},
+    ts = candle START in epoch seconds). FYERS caps minute resolutions at
+    100 days per request; callers chunk longer ranges.
+
+    Mock mode returns NO candles on purpose: this feeds the suggestion
+    tracker, and synthetic candles would write fabricated outcomes."""
+    if client.use_mock:
+        return {"s": "ok", "candles": []}
+
+    params = {
+        "symbol": symbol,
+        "resolution": resolution,
+        "date_format": "1",
+        "range_from": range_from.isoformat(),
+        "range_to": range_to.isoformat(),
+        "cont_flag": "1",
+    }
+    return await client.get_data("/history", params=params)
